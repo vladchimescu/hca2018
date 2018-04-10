@@ -19,7 +19,7 @@ suppressMessages(library(dplyr))
 suppressMessages(library(rhdf5))
 suppressMessages(library(RANN))
 suppressMessages(library(tidyr))
-load("scratch/Group7/ashis/bipolar/bipolar_sample_model.RData") 
+load("final_model.RData") 
 
 
 args <- commandArgs(trailingOnly = TRUE)
