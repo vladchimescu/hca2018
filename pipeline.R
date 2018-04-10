@@ -15,29 +15,34 @@ source('/home/jovyan/scratch/Group7/ashis/hca2018/functions.R')
 args <- arg_parser("program");
 args <- add_argument(args, '-loom',
                      help='loom file',
-                     #default='/home/jovyan/data/tasks/how_many_cells/human_pancreas.loom')
+                     default='/home/jovyan/data/tasks/how_many_cells/human_pancreas.loom')
                      #default='/home/jovyan/data/tasks/how_many_cells/bipolar.loom')
-                     default='/home/jovyan/data/tasks/how_many_cells/pbmc.loom')
+                     #default='/home/jovyan/data/tasks/how_many_cells/pbmc.loom')
 # args <- add_argument(args, '-separability',
 #                      help='type of separability function: rahul / tp',
 #                      default='rahul')
 args <- add_argument(args, '-ncell',
                      help='number of cells to downsample -- comma separated',
+                     default='250,500')
                      #default='250,500,750,1000,1250,1500,1750,2000,2250,2500,2750,3000,3250,3500,3750,4000,4250,4500,4750,5000,5500,6000,6500,7000,7500,8000,8500')
-                     default="250,500,750,1000,1250,1500,1750,2000,2250,2500,2750,3000,3250,3500,3750,4000,4250,4500,4750,5000,5500,6000,6500,7000,7500,8000,8500,9000,9500,10000,11000,12000,13000,14000,15000,16000,17000,18000,19000,20000,21000,22000,23000,24000")
+                     #default="250,500,750,1000,1250,1500,1750,2000,2250,2500,2750,3000,3250,3500,3750,4000,4250,4500,4750,5000,5500,6000,6500,7000,7500,8000,8500,9000,9500,10000,11000,12000,13000,14000,15000,16000,17000,18000,19000,20000,21000,22000,23000,24000" )
                      #default="250,500,750,1000,1250,1500,1750,2000,2250,2500,2750,3000,3250,3500,3750,4000,4250,4500,4750,5000,5500,6000,6500,7000,7500,8000,8500,9000,9500,10000,11000,12000,13000,14000,15000,16000,17000,18000,19000,20000,21000,22000,23000,24000,25000,26000,27000,28000,29000,30000")
+args <- add_argument(args, '-core',
+                     help='number of cores',
+                     default=4)
 args <- add_argument(args, '-o',
                      help='output prefix.',
                      # default='/home/jovyan/scratch/Group7/ashis/human_pancreas/human_pancreas')
                      #default='/home/jovyan/scratch/Group7/ashis/bipolar/bipolar')
-                     default='/home/jovyan/scratch/Group7/aw/pbmc')
-                     #default='/home/jovyan/scratch/Group7/ashis/output')
+                     #default='/home/jovyan/scratch/Group7/aw/pbmc')
+                     default='/home/jovyan/scratch/Group7/ashis/test')
 
 
 argv = parse_args(args)
 loom_file <- argv$loom
 #separability_func <- argv$separability
 ncell_input = argv$ncell
+n_cores = argv$core
 out_prefix <- argv$o
 
 ### parse ncell input
@@ -159,6 +164,15 @@ fn1 <- function(downsample_cells) {
         cluster_separabilities_local[row_n,"ncell_cluster2"] <- length(cells_2)
         # compute mean coverage
         cluster_separabilities_local[row_n,"mean_nUMI"] <- mean_nUMI
+        depth1s = subsample@meta.data[cells_1, 'nUMI']
+        depth2s = subsample@meta.data[cells_2, 'nUMI']
+        cluster_separabilities_local[row_n,"mean_depth_cluster1"] <- mean(depth1s)
+        cluster_separabilities_local[row_n,"median_depth_cluster1"] <- median(depth1s)
+        cluster_separabilities_local[row_n,"var_depth_cluster1"] <- var(depth1s)
+        cluster_separabilities_local[row_n,"mean_depth_cluster2"] <- mean(depth2s)
+        cluster_separabilities_local[row_n,"median_depth_cluster2"] <- median(depth2s)
+        cluster_separabilities_local[row_n,"var_depth_cluster2"] <- var(depth2s)
+        
         # k-means features
         cluster_separabilities_local[row_n, "tp"] <- tp
         cluster_separabilities_local[row_n, "kdist"] <- kdist
@@ -169,7 +183,7 @@ fn1 <- function(downsample_cells) {
   cluster_separabilities_local
 }
 
-cluster_separabilities <- mclapply(ncell_use, fn1, mc.cores=4)
+cluster_separabilities <- mclapply(ncell_use, fn1, mc.cores=n_cores)
 cluster_separabilities <- do.call(rbind, cluster_separabilities)
 
 print(head(cluster_separabilities))
