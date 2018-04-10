@@ -68,3 +68,5 @@ get_kmdist <- function(cells_1, cells_2, data_for_knn) {
    
 }
 
+# Euclidean vector norm
+vecnorm <- function(x) sqrt(sum(x^2))
