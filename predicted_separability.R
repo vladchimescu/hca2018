@@ -38,22 +38,8 @@ PredictSeparability <- function(num_cells) {
   features$ncell = num_cells
   predict(final_model, features)
 }
-################################################################################
 
-data <- h5read(filename, name="/")
-
-# we can read this using loomR, but since that might not be installed, we'll read using HDF5
-data_matrix <- t(data$matrix)
-dimnames(data_matrix) <- list(data$row_attrs$gene_names, data$col_attrs$cell_names)
-cluster_ids <- data$col_attrs$cluster; 
-names(cluster_ids) <- colnames(data_matrix)
-rm(data)
-data_matrix <- Matrix(data_matrix,sparse=T)
-
-object <- CreateSeuratObject(raw.data = data_matrix)
-object <- NormalizeData(object,display.progress = F,scale.factor = 1e4,normalization.method = "LogNormalize")
-
-### process data
+### Process Data
 ProcessData <- function(object) {
   object <- FindVariableGenes(object, do.plot = FALSE, display.progress = FALSE)
   object@var.genes <- rownames(head(object@hvg.info, 1000))
@@ -63,7 +49,6 @@ ProcessData <- function(object) {
   return(GetCellEmbeddings(object, reduction.type = "pca", dims.use = 1:30))
 }
 
-### functions
 # calculaets true positive rate of cluster assignment
 # clustering using k-means
 get_tp <- function(cells_1, cells_2, data_for_knn) {
@@ -109,6 +94,20 @@ get_kmdist <- function(cells_1, cells_2, data_for_knn) {
 
 # Euclidean vector norm
 vecnorm <- function(x) sqrt(sum(x^2))
+################################################################################
+
+data <- h5read(filename, name="/")
+
+# we can read this using loomR, but since that might not be installed, we'll read using HDF5
+data_matrix <- t(data$matrix)
+dimnames(data_matrix) <- list(data$row_attrs$gene_names, data$col_attrs$cell_names)
+cluster_ids <- data$col_attrs$cluster; 
+names(cluster_ids) <- colnames(data_matrix)
+rm(data)
+data_matrix <- Matrix(data_matrix,sparse=T)
+
+object <- CreateSeuratObject(raw.data = data_matrix)
+object <- NormalizeData(object,display.progress = F,scale.factor = 1e4,normalization.method = "LogNormalize")
 
 
 ### generate features
@@ -224,4 +223,5 @@ predictions <- do.call(rbind, predictions)
 
 output <- data.frame(ncell_use, predictions)
 colnames(output) <- c("Number of Cells", "Predicted Separability")
+head(output)
 write.table(x = output, file = outputfile, sep = "\t", quote = FALSE, row.names = FALSE)
