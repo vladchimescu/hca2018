@@ -4,7 +4,8 @@ library(RANN)
 library(tidyr)
 library(dplyr)
 library(argparser)
-source('scratch/Group7/functions.R')
+library(parallel)
+source('/home/jovyan/scratch/Group7/ashis/hca2018/functions.R')
 
 ## to run the script in terminal:
 # Rscript pipeline.R -loom '/home/jovyan/data/tasks/how_many_cells/pbmc.loom' \
@@ -23,14 +24,14 @@ args <- add_argument(args, '-loom',
 args <- add_argument(args, '-ncell',
                      help='number of cells to downsample -- comma separated',
                      #default='250,500,750,1000,1250,1500,1750,2000,2250,2500,2750,3000,3250,3500,3750,4000,4250,4500,4750,5000,5500,6000,6500,7000,7500,8000,8500')
-                     #default="250,500,750,1000,1250,1500,1750,2000,2250,2500,2750,3000,3250,3500,3750,4000,4250,4500,4750,5000,5500,6000,6500,7000,7500,8000,8500,9000,9500,10000,11000,12000,13000,14000,15000,16000,17000,18000,19000,20000,21000,22000,23000,24000")
-                     default="250,500,750,1000,1250,1500,1750,2000,2250,2500,2750,3000,3250,3500,3750,4000,4250,4500,4750,5000,5500,6000,6500,7000,7500,8000,8500,9000,9500,10000,11000,12000,13000,14000,15000,16000,17000,18000,19000,20000,21000,22000,23000,24000,25000,26000,27000,28000,29000,30000")
+                     default="250,500,750,1000,1250,1500,1750,2000,2250,2500,2750,3000,3250,3500,3750,4000,4250,4500,4750,5000,5500,6000,6500,7000,7500,8000,8500,9000,9500,10000,11000,12000,13000,14000,15000,16000,17000,18000,19000,20000,21000,22000,23000,24000")
+                     #default="250,500,750,1000,1250,1500,1750,2000,2250,2500,2750,3000,3250,3500,3750,4000,4250,4500,4750,5000,5500,6000,6500,7000,7500,8000,8500,9000,9500,10000,11000,12000,13000,14000,15000,16000,17000,18000,19000,20000,21000,22000,23000,24000,25000,26000,27000,28000,29000,30000")
 args <- add_argument(args, '-o',
                      help='output prefix.',
                      # default='/home/jovyan/scratch/Group7/ashis/human_pancreas/human_pancreas')
                      #default='/home/jovyan/scratch/Group7/ashis/bipolar/bipolar')
-                     #default='/home/jovyan/scratch/Group7/ashis/pbmc/pbmc')
-                     default='/home/jovyan/scratch/Group7/ashis/output')
+                     default='/home/jovyan/scratch/Group7/aw/pbmc')
+                     #default='/home/jovyan/scratch/Group7/ashis/output')
 
 
 argv = parse_args(args)
@@ -113,9 +114,19 @@ cluster_separabilities <- tibble(ncell = numeric(),
                                  kdist = double())
 subsample_cells_store <- list()
 
-for(n_cell in 1:length(ncell_use)) {
+
+fn1 <- function(downsample_cells) {   
+  cluster_separabilities_local <- tibble(ncell = numeric(), 
+                                   clusters = character(), 
+                                   separability = double(),
+                                   ncell_cluster1 = double(),
+                                   ncell_cluster2 = double(),
+                                   mean_nUMI = double(),
+                                   tp = double(),
+                                   kdist = double())
+  
   #Downsample Seurat object
-  downsample_cells <- ncell_use[n_cell]
+  # downsample_cells <- ncell_use[n_cell]
   subsample <- SubsetData(object,cells.use = sample(object@cell.names,size = downsample_cells))
   
   # mean library size
@@ -127,7 +138,7 @@ for(n_cell in 1:length(ncell_use)) {
   #Now, compute all pairs of separabilities for all clusters
   clusters_compute <- unique(cluster_ids)
   subsample_cells <- subsample@cell.names
-  subsample_cells_store[[as.character(n_cell)]] <- subsample_cells
+  # subsample_cells_store[[as.character(n_cell)]] <- subsample_cells
   
   for(i in 1:length(clusters_compute)) {
     for(j in 1:i) {
@@ -139,23 +150,27 @@ for(n_cell in 1:length(ncell_use)) {
         # k-means
         kdist = get_kmdist(data_for_knn = data_for_knn, cells_1 = cells_1, cells_2 = cells_2)
         cluster_comparison <- paste(clusters_compute[i],clusters_compute[j],sep=":")  
-        row_n <- nrow(cluster_separabilities)+1
-        cluster_separabilities[row_n,"ncell"] <- downsample_cells; 
-        cluster_separabilities[row_n,"separability"] <- cluster_sep
-        cluster_separabilities[row_n,"clusters"] <- paste(clusters_compute[i],clusters_compute[j],sep=":")
+        row_n <- nrow(cluster_separabilities_local)+1
+        cluster_separabilities_local[row_n,"ncell"] <- downsample_cells; 
+        cluster_separabilities_local[row_n,"separability"] <- cluster_sep
+        cluster_separabilities_local[row_n,"clusters"] <- paste(clusters_compute[i],clusters_compute[j],sep=":")
         # compute cluster balance
-        cluster_separabilities[row_n,"ncell_cluster1"] <- length(cells_1)
-        cluster_separabilities[row_n,"ncell_cluster2"] <- length(cells_2)
+        cluster_separabilities_local[row_n,"ncell_cluster1"] <- length(cells_1)
+        cluster_separabilities_local[row_n,"ncell_cluster2"] <- length(cells_2)
         # compute mean coverage
-        cluster_separabilities[row_n,"mean_nUMI"] <- mean_nUMI
+        cluster_separabilities_local[row_n,"mean_nUMI"] <- mean_nUMI
         # k-means features
-        cluster_separabilities[row_n, "tp"] <- tp
-        cluster_separabilities[row_n, "kdist"] <- kdist
+        cluster_separabilities_local[row_n, "tp"] <- tp
+        cluster_separabilities_local[row_n, "kdist"] <- kdist
       }
     }
   }
   if (downsample_cells%%1000 == 0) print(downsample_cells)
+  cluster_separabilities_local
 }
+
+cluster_separabilities <- mclapply(ncell_use, fn1, mc.cores=4)
+cluster_separabilities <- do.call(rbind, cluster_separabilities)
 
 print(head(cluster_separabilities))
 print(tail(cluster_separabilities))
