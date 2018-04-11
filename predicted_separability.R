@@ -40,8 +40,9 @@ all_data <- NULL # will be filled up later
 
 ################################ Fxn Definitions ###############################
 PredictSeparability <- function(num_cells) {
-  features = all_data
-  features$ncell = num_cells
+  features <- all_data
+  features$ncell <- num_cells
+  features$log2_ncell <- log2(num_cells)
   predict(final_model, features)
 }
 
@@ -229,7 +230,6 @@ prep.dataset <- function(dataset){
     dataset$total.depth <- dataset$mean_depth_cluster1 + dataset$mean_depth_cluster2
     dataset$total.cells <- dataset$ncell_cluster1 + dataset$ncell_cluster2
     dataset$freq.ratios <- ifelse(dataset$mean_depth_cluster1 > dataset$mean_depth_cluster2, dataset$mean_depth_cluster1/dataset$mean_depth_cluster2, dataset$mean_depth_cluster2/dataset$mean_depth_cluster1)
-    dataset$log2_ncell <- log2(dataset$ncell)
     dataset$log2_mean_nUMI <- log2(dataset$mean_nUMI)
     dataset
 }
@@ -238,7 +238,7 @@ all_data <- prep.dataset(all_data)
 
 ncell_use <- seq(1000, 100000, 1000)
 
-predictions <- mclapply(ncell_use, PredictSeparability, mc.cores=4)
+predictions <- lapply(ncell_use, PredictSeparability)
 predictions <- do.call(rbind, predictions)
 
 output <- data.frame(ncell_use, predictions)
