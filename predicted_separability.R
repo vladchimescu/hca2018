@@ -223,11 +223,14 @@ all_data$ncell_small_cluster <- pmin(all_data$ncell_cluster1, all_data$ncell_clu
 all_data$cluster_balance <- all_data$ncell_small_cluster / all_data$ncell_big_cluster
 
 prep.dataset <- function(dataset){
-    dataset$separability <-dataset$separability - 1e-3
     dataset$total.frequency <- dataset$frequency_cluster1 + dataset$frequency_cluster2
+    dataset$frequency_big_cluster <- pmax(dataset$frequency_cluster1, dataset$frequency_cluster2)
     dataset$min.depth <- pmin(dataset$mean_depth_cluster1, dataset$mean_depth_cluster2)
     dataset$total.depth <- dataset$mean_depth_cluster1 + dataset$mean_depth_cluster2
     dataset$total.cells <- dataset$ncell_cluster1 + dataset$ncell_cluster2
+    dataset$freq.ratios <- ifelse(dataset$mean_depth_cluster1 > dataset$mean_depth_cluster2, dataset$mean_depth_cluster1/dataset$mean_depth_cluster2, dataset$mean_depth_cluster2/dataset$mean_depth_cluster1)
+    dataset$log2_ncell <- log2(dataset$ncell)
+    dataset$log2_mean_nUMI <- log2(dataset$mean_nUMI)
     dataset
 }
 
