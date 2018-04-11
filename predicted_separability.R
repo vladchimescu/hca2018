@@ -19,16 +19,22 @@ suppressMessages(library(dplyr))
 suppressMessages(library(rhdf5))
 suppressMessages(library(RANN))
 suppressMessages(library(tidyr))
+suppressMessages(library(randomForest))
+
 load("final_model.RData") 
 
 
 args <- commandArgs(trailingOnly = TRUE)
-filename = args[1]
-cluster_name1 = args[2]
-freq1 = args[3]
-cluster_name2 = args[4]
-freq2 = args[5]
-outputfile = args[6]
+filename <- args[1]
+cluster_name1 <- args[2]
+freq1 <- args[3]
+cluster_name2 <- args[4]
+freq2 <- args[5]
+outputfile <- args[6]
+
+freq1 = as.double(freq1)
+freq2 = as.double(freq2)
+
 
 all_data <- NULL # will be filled up later
 
@@ -164,7 +170,7 @@ cluster_separabilities_local[row_n,"var_depth_cluster1"] <- var(depth1s)
 cluster_separabilities_local[row_n,"mean_depth_cluster2"] <- mean(depth2s)
 cluster_separabilities_local[row_n,"median_depth_cluster2"] <- median(depth2s)
 cluster_separabilities_local[row_n,"var_depth_cluster2"] <- var(depth2s)
-        
+
 # k-means features
 cluster_separabilities_local[row_n, "tp"] <- tp
 cluster_separabilities_local[row_n, "kdist"] <- kdist
@@ -216,6 +222,17 @@ all_data$ncell_big_cluster <- pmax(all_data$ncell_cluster1, all_data$ncell_clust
 all_data$ncell_small_cluster <- pmin(all_data$ncell_cluster1, all_data$ncell_cluster2)
 all_data$cluster_balance <- all_data$ncell_small_cluster / all_data$ncell_big_cluster
 
+prep.dataset <- function(dataset){
+    dataset$separability <-dataset$separability - 1e-3
+    dataset$total.frequency <- dataset$frequency_cluster1 + dataset$frequency_cluster2
+    dataset$min.depth <- pmin(dataset$mean_depth_cluster1, dataset$mean_depth_cluster2)
+    dataset$total.depth <- dataset$mean_depth_cluster1 + dataset$mean_depth_cluster2
+    dataset$total.cells <- dataset$ncell_cluster1 + dataset$ncell_cluster2
+    dataset
+}
+
+all_data <- prep.dataset(all_data)
+
 ncell_use <- seq(1000, 100000, 1000)
 
 predictions <- mclapply(ncell_use, PredictSeparability, mc.cores=4)
@@ -223,5 +240,4 @@ predictions <- do.call(rbind, predictions)
 
 output <- data.frame(ncell_use, predictions)
 colnames(output) <- c("Number of Cells", "Predicted Separability")
-head(output)
 write.table(x = output, file = outputfile, sep = "\t", quote = FALSE, row.names = FALSE)
